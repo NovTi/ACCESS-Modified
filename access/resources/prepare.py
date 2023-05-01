@@ -5,13 +5,14 @@
 # LICENSE file in the root directory of this source tree.
 #
 
-from glob import glob
 import os
-from pathlib import Path
+import pdb
 import shutil
 import tempfile
-
 import numpy as np
+
+from glob import glob
+from pathlib import Path
 
 from access.text import word_tokenize
 from access.utils.helpers import (yield_lines_in_parallel, write_lines_in_parallel, create_directory_or_skip,
@@ -46,6 +47,7 @@ def prepare_turkcorpus_lower():
     with create_directory_or_skip(get_dataset_dir(dataset)):
         url = 'https://github.com/cocoxu/simplification.git'
         output_dir = Path(tempfile.mkdtemp())
+        # pdb.set_trace()
         git_clone(url, output_dir)
         print(output_dir)
         print('Processing...')

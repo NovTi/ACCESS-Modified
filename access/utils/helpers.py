@@ -4,7 +4,7 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 #
-
+import pdb
 from contextlib import contextmanager, AbstractContextManager
 from fcntl import flock, LOCK_EX, LOCK_UN
 import inspect
@@ -22,7 +22,7 @@ import numpy as np
 def open_files(filepaths, mode='r'):
     files = []
     try:
-        files = [Path(filepath).open(mode) for filepath in filepaths]
+        files = [Path(filepath).open(mode, encoding='utf-8') for filepath in filepaths]
         yield files
     finally:
         [f.close() for f in files]
@@ -30,6 +30,7 @@ def open_files(filepaths, mode='r'):
 
 def yield_lines_in_parallel(filepaths, strip=True, strict=True, n_lines=float('inf')):
     assert type(filepaths) == list
+    # pdb.set_trace()
     with open_files(filepaths) as files:
         for i, parallel_lines in enumerate(zip_longest(*files)):
             if i >= n_lines:
@@ -74,7 +75,7 @@ def yield_lines(filepath, n_lines=float('inf'), prop=1):
     if prop < 1:
         assert n_lines == float('inf')
         n_lines = int(prop * count_lines(filepath))
-    with open(filepath, 'r') as f:
+    with open(filepath, 'r', encoding='utf-8') as f:
         for i, l in enumerate(f):
             if i >= n_lines:
                 break

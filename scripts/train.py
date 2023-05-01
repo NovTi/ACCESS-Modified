@@ -4,21 +4,22 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 #
-
+import pdb
 from access.fairseq.main import fairseq_train_and_evaluate
 from access.resources.prepare import prepare_wikilarge, prepare_turkcorpus
 
 
 if __name__ == '__main__':
     print('Training a model from scratch')
-    prepare_wikilarge()
+    # prepare_wikilarge()
     prepare_turkcorpus()
     kwargs = {
         'arch': 'transformer',
         'warmup_updates': 4000,
         'parametrization_budget': 256,
         'beam': 8,
-        'dataset': 'wikilarge',
+        # 'dataset': 'wikilarge',
+        'dataset': 'turkcorpus',
         'dropout': 0.2,
         'fp16': False,
         'label_smoothing': 0.54,
@@ -29,6 +30,12 @@ if __name__ == '__main__':
         'metrics_coefs': [0, 1, 0],
         'optimizer': 'adam',
         'preprocessors_kwargs': {
+            'ClauseDependencyRatioPreprocessor':{
+                'target_ratio': 0.8  # Default initial value
+            },
+            'PosCompressionRatioPreprocessor':{
+                'target_ratio': 0.8  # Default initial value
+            },
             'LengthRatioPreprocessor': {
                 'target_ratio': 0.8  # Default initial value
             },

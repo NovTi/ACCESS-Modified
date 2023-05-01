@@ -13,6 +13,7 @@ import re
 import shutil
 import tempfile
 import time
+import pdb
 
 from fairseq import options
 from fairseq_cli import preprocess, train, generate
@@ -70,7 +71,7 @@ def fairseq_train(
         encoder_attention_heads=8,
         # encoder_decoder_dim_ratio=1,
         # share_embeddings=True,
-        max_epoch=50,
+        max_epoch=100,
         warmup_updates=None,
         lr=0.1,
         min_lr=1e-9,
@@ -108,7 +109,10 @@ def fairseq_train(
             '--criterion',
             criterion,
             '--no-epoch-checkpoints',
+            '--save-interval',
+            5,
             '--save-interval-updates',
+            # used to be 5000
             5000,  # Validate every n updates
             '--validations-before-sari-early-stopping',
             validations_before_sari_early_stopping,
@@ -172,6 +176,7 @@ def fairseq_train(
             args.extend(['--warmup-updates', warmup_updates])
         args = [str(arg) for arg in args]
         train_args = options.parse_args_and_arch(train_parser, args)
+        pdb.set_trace()
         train.main(train_args)
 
 

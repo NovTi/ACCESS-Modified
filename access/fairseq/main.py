@@ -4,7 +4,7 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 #
-
+import pdb
 from collections import defaultdict
 from functools import lru_cache
 import shutil
@@ -108,16 +108,17 @@ def check_and_resolve_args(kwargs):
 @print_result
 @print_running_time
 def fairseq_train_and_evaluate(dataset, metrics_coefs=[1, 1, 1], parametrization_budget=64, **kwargs):
-    check_dataset(dataset)
+    # check_dataset(dataset)
     kwargs = check_and_resolve_args(kwargs)
     exp_dir = prepare_exp_dir()
     preprocessors_kwargs = kwargs.get('preprocessors_kwargs', {})
-    preprocessors = get_preprocessors(preprocessors_kwargs)
+    preprocessors = get_preprocessors(preprocessors_kwargs)  # type: list of preprocessing classes
     if len(preprocessors) > 0:
         dataset = create_preprocessed_dataset(dataset, preprocessors, n_jobs=1)
         shutil.copy(get_dataset_dir(dataset) / 'preprocessors.pickle', exp_dir)
-    preprocessed_dir = fairseq_preprocess(dataset)
+    preprocessed_dir = fairseq_preprocess(dataset)   # this goes wrong
     train_kwargs = get_allowed_kwargs(fairseq_train, preprocessed_dir, exp_dir, **kwargs)
+    # train
     fairseq_train(preprocessed_dir, exp_dir=exp_dir, **train_kwargs)
     # Evaluation
     generate_kwargs = get_allowed_kwargs(fairseq_generate, 'complex_filepath', 'pred_filepath', exp_dir, **kwargs)

@@ -4,9 +4,10 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 #
-
+import pdb
 import hashlib
 from pathlib import Path
+from tqdm import tqdm
 
 from access.preprocess import get_parallel_file_pair_preprocessor
 from access.preprocessors import dump_preprocessors, load_preprocessors
@@ -44,7 +45,7 @@ def create_preprocessed_dataset_one_preprocessor(dataset, preprocessor, n_jobs):
         new_dataset_dir = get_dataset_dir(new_dataset)
         filepaths_dict = get_filepaths_dict(dataset)
         new_filepaths_dict = get_filepaths_dict(new_dataset)
-        for phase in PHASES:
+        for phase in tqdm(PHASES):
             if not filepaths_dict[phase, 'complex'].exists() or not filepaths_dict[phase, 'complex'].exists():
                 continue
             parallel_file_pair_preprocessor = get_parallel_file_pair_preprocessor(
@@ -68,6 +69,7 @@ def create_preprocessed_dataset_one_preprocessor(dataset, preprocessor, n_jobs):
 def create_preprocessed_dataset(dataset, preprocessors, n_jobs=1):
     for preprocessor in preprocessors:
         # Fit preprocessor on input dataset
+        # get_data_filepath returns the path of the datafile location
         preprocessor.fit(get_data_filepath(dataset, 'train', 'complex'), get_data_filepath(dataset, 'train', 'simple'))
         dataset = create_preprocessed_dataset_one_preprocessor(dataset, preprocessor, n_jobs)
     return dataset

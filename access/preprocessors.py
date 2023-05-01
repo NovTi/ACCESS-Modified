@@ -4,7 +4,8 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 #
-
+import pdb
+import nltk
 from abc import ABC
 from functools import wraps, lru_cache
 import hashlib
@@ -103,7 +104,7 @@ class AbstractPreprocessor(ABC):
     def prefix(self):
         return self.__class__.__name__.replace('Preprocessor', '')
 
-    def fit(self, complex_filepath, simple_filepath):
+    def fit(self, complex_filepath, simple_filepath=None):
         pass
 
     def encode_sentence(self, sentence, encoder_sentence=None):
@@ -123,7 +124,7 @@ class AbstractPreprocessor(ABC):
         if encoder_filepath is None:
             # We will use an empty temporary file which will yield None for each line
             encoder_filepath = get_temp_filepath(create=True)
-        with open(output_filepath, 'w') as f:
+        with open(output_filepath, 'w', encoding='utf-8') as f:
             for input_line, encoder_line in yield_lines_in_parallel([input_filepath, encoder_filepath], strict=False):
                 f.write(self.encode_sentence(input_line, encoder_line) + '\n')
 
@@ -131,7 +132,7 @@ class AbstractPreprocessor(ABC):
         if encoder_filepath is None:
             # We will use an empty temporary file which will yield None for each line
             encoder_filepath = get_temp_filepath(create=True)
-        with open(output_filepath, 'w') as f:
+        with open(output_filepath, 'w', encoding='utf-8') as f:
             for encoder_sentence, input_sentence in yield_lines_in_parallel([encoder_filepath, input_filepath],
                                                                             strict=False):
                 decoded_sentence = self.decode_sentence(input_sentence, encoder_sentence=encoder_sentence)
@@ -161,7 +162,7 @@ class ComposedPreprocessor(AbstractPreprocessor):
     def get_suffix(self):
         return '_'.join([p.prefix.lower() for p in self.preprocessors])
 
-    def fit(self, complex_filepath, simple_filepath):
+    def fit(self, complex_filepath, simple_filepath=None):
         for preprocessor in self.preprocessors:
             pass
 
@@ -238,10 +239,13 @@ class FeaturePreprocessor(AbstractPreprocessor):
         return sentence
 
     def encode_sentence_pair(self, complex_sentence, simple_sentence):
+        # try:
         feature = self.bucketize(
             self.add_noise(
                 self.get_feature_value(remove_special_tokens(complex_sentence),
-                                       remove_special_tokens(simple_sentence))))
+                                    remove_special_tokens(simple_sentence))))
+        # except:
+        #     pdb.set_trace()
         return f'{self.get_feature_token(feature)} {complex_sentence}', simple_sentence
 
 
@@ -341,7 +345,7 @@ class SentencePiecePreprocessor(AbstractPreprocessor):
             args_str += f' --input_sentence_size={max_lines} --shuffle_input_sentence=true'
         spm.SentencePieceTrainer.Train(args_str)
 
-    def fit(self, complex_filepath, simple_filepath):
+    def fit(self, complex_filepath, simple_filepath=None):
         # Args are not used
         self.learn_sentencepiece()
 
@@ -355,3 +359,67 @@ class SentencePiecePreprocessor(AbstractPreprocessor):
 
     def decode_sentence(self, sentence, encoder_sentence=None):
         return self.sp.DecodePieces(sentence.split(' '))
+
+
+class ClauseDependencyRatioPreprocessor(FeaturePreprocessor):
+    @store_args
+    def __init__(self, target_ratio=0.8, bucket_size=0.05, noise_std=0):
+        self.target_ratio = target_ratio
+        super().__init__(self.prefix.upper(), self.get_feature_value, self.get_target_feature_value, bucket_size,
+                         noise_std)
+
+    def get_target_feature_value(self, complex_sentence):
+        return self.target_ratio
+
+    def feature_extractor(self, sentence):
+        # create clauses list
+        dependent_clauses = []
+        # tokenize sent
+        sent_clauses = nltk.sent_tokenize(sentence)
+        # get the clasuses
+        for clause in sent_clauses:
+            words = nltk.word_tokenize(clause)
+            tags = nltk.pos_tag(words)
+            for i in range(len(tags)):
+                if tags[i][1] == 'IN':
+                    dependent_clause = ' '.join(words[i+1:])
+                    dependent_clauses.append(dependent_clause)
+        return len(dependent_clauses)
+
+    def get_feature_value(self, complex_sentence, simple_sentence):
+        comp_dependent_clauses_len = self.feature_extractor(complex_sentence)
+        simple_dependent_clauses_len = self.feature_extractor(simple_sentence)
+
+        if(comp_dependent_clauses_len > 0 and simple_dependent_clauses_len > 0):
+            return min(safe_division(simple_dependent_clauses_len, comp_dependent_clauses_len), 2)
+        elif(comp_dependent_clauses_len > 0):
+            return 0.1
+        else:
+            return 1.0
+
+
+class PosCompressionRatioPreprocessor(FeaturePreprocessor):
+    @store_args
+    def __init__(self, target_ratio=0.8, bucket_size=0.05, noise_std=0):
+        self.target_ratio = target_ratio
+        super().__init__(self.prefix.upper(), self.get_feature_value, self.get_target_feature_value, bucket_size,
+                         noise_std)
+
+    def get_target_feature_value(self, complex_sentence):
+        return self.target_ratio
+
+    def feature_extractor(self, sentence):
+        # tokenize sent
+        words = nltk.word_tokenize(sentence)
+        # get tages
+        tags = nltk.pos_tag(words)
+        distinct_tags = set(tag[1] for tag in tags)
+
+        return len(distinct_tags)
+
+    def get_feature_value(self, complex_sentence, simple_sentence):
+        comp_distinct_tags_len = self.feature_extractor(complex_sentence)
+        simple_distinct_tags_len = self.feature_extractor(simple_sentence)
+        
+        return min(safe_division(simple_distinct_tags_len, comp_distinct_tags_len), 2)
+        
